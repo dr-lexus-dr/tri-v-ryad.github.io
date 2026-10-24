@@ -3,7 +3,7 @@ import { Platform } from './platform.js';
 import { audio } from './audio.js';
 import { Game, COLS, ROWS } from './game.js';
 import { Renderer } from './render.js';
-import { loadLeaderboard, scoreIssueUrl, sanitizeNick } from './leaderboard.js';
+import { loadLeaderboard, submitScore, sanitizeNick, isLeaderboardConfigured } from './leaderboard.js';
 
 const SAVE_KEY = 'gems.save.v1';
 const DEFAULT_SAVE = {
@@ -34,6 +34,7 @@ const app = {
   adActive: false,
   nickMode: 'play',
   lastWin: null,
+  sending: false,
   resetArmedUntil: 0
 };
 
@@ -302,8 +303,7 @@ function onWin(data) {
   });
 
   app.lastWin = { score: data.score, level: data.level };
-  dom['btn-submit-score'].disabled = false;
-  dom['btn-submit-score'].textContent = t('submitScore');
+  prepareSubmit();
 
   app.renderer.stop();
   openOverlay('ov-win');
@@ -313,16 +313,34 @@ function onWin(data) {
   }
 }
 
-function submitScore() {
-  if (!app.lastWin) return;
-  const nick = app.save.nick || t('nickDefault');
-  const url = scoreIssueUrl({ nick, score: app.lastWin.score, level: app.lastWin.level });
+function prepareSubmit() {
+  const button = dom['btn-submit-score'];
+  if (!isLeaderboardConfigured()) {
+    button.classList.add('is-hidden');
+    return;
+  }
+  button.classList.remove('is-hidden');
+  sendScore();
+}
 
-  window.open(url, '_blank', 'noopener');
-  dom['btn-submit-score'].disabled = true;
-  dom['btn-submit-score'].textContent = t('submitSent');
-  toast(t('submitHint'));
-  audio.click();
+async function sendScore() {
+  const info = app.lastWin;
+  const button = dom['btn-submit-score'];
+  if (!info || app.sending) return;
+
+  app.sending = true;
+  button.disabled = true;
+  button.textContent = t('submitSending');
+
+  try {
+    await submitScore({ nick: app.save.nick, score: info.score, level: info.level });
+    button.textContent = t('submitSent');
+  } catch (error) {
+    button.textContent = t('submitRetry');
+    button.disabled = false;
+  } finally {
+    app.sending = false;
+  }
 }
 
 function onLose() {
@@ -439,6 +457,15 @@ async function openLeaders() {
   loading.className = 'lb-empty';
   loading.textContent = t('loading');
   list.append(loading);
+
+  if (!isLeaderboardConfigured()) {
+    list.textContent = '';
+    const message = document.createElement('p');
+    message.className = 'lb-empty';
+    message.textContent = t('lbNotConfigured');
+    list.append(message);
+    return;
+  }
 
   let rows = [];
   try {
@@ -627,7 +654,7 @@ function bindUi() {
     }
   });
 
-  dom['btn-submit-score'].addEventListener('click', submitScore);
+  dom['btn-submit-score'].addEventListener('click', sendScore);
 
   dom['btn-leaders-close'].addEventListener('click', () => {
     closeOverlays();
@@ -691,6 +718,10 @@ async function boot() {
   showScreen('menu');
   hideLoading();
   Platform.ready();
+
+  if (!app.save.nick) {
+    setTimeout(() => askNick('intro'), 250);
+  }
 }
 
 if (new URLSearchParams(location.search).has('debug')) {

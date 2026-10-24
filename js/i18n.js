@@ -54,9 +54,12 @@ const STRINGS = {
     nickDefault: 'Гость',
     changeNick: 'Сменить ник',
     submitScore: 'Отправить в таблицу',
-    submitSent: 'Отправлено на проверку',
+    submitSent: 'Отправлено в таблицу',
+    submitSending: 'Отправка…',
+    submitRetry: 'Повторить отправку',
+    lbNotConfigured: 'Таблица лидеров не настроена.',
     submitHint: 'Откроется GitHub: проверьте ник и нажмите «Submit new issue».',
-    lbNote: 'Результаты появляются после проверки, обычно в течение минуты.'
+    lbNote: 'Таблица обновляется сразу после отправки.'
   },
   en: {
     title: 'Gems',
@@ -113,9 +116,12 @@ const STRINGS = {
     nickDefault: 'Guest',
     changeNick: 'Change nickname',
     submitScore: 'Submit to leaderboard',
-    submitSent: 'Sent for review',
+    submitSent: 'Submitted to leaderboard',
+    submitSending: 'Sending…',
+    submitRetry: 'Retry submission',
+    lbNotConfigured: 'Leaderboard is not configured.',
     submitHint: 'GitHub will open: check your nickname and click "Submit new issue".',
-    lbNote: 'Scores appear after review, usually within a minute.'
+    lbNote: 'The leaderboard updates right after submission.'
   }
 };
 
