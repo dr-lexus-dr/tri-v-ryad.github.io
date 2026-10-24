@@ -39,13 +39,24 @@ const STRINGS = {
     adNotFinished: 'Досмотрите рекламу до конца, чтобы получить ходы',
     player: 'Игрок',
     lbUnavailable: 'Таблица лидеров пока недоступна',
-    lbEmpty: 'Результатов пока нет. Станьте первым!',
+    lbEmpty: 'Пока никто не отправил результат. Будьте первым!',
     lbSignIn: 'Войдите в аккаунт Яндекса, чтобы попасть в таблицу лидеров',
     you: 'Вы',
     newRecord: 'Новый рекорд!',
     confirmReset: 'Сбросить прогресс и начать с первого уровня?',
     resetDone: 'Прогресс сброшен',
-    goal: 'Цель'
+    goal: 'Цель',
+    nickTitle: 'Как вас зовут?',
+    nickHint: 'Ник увидят все в таблице лидеров. Уникальность не проверяется.',
+    nickPlaceholder: 'Ваш ник',
+    nickSave: 'Сохранить',
+    nickSkip: 'Пропустить',
+    nickDefault: 'Гость',
+    changeNick: 'Сменить ник',
+    submitScore: 'Отправить в таблицу',
+    submitSent: 'Отправлено на проверку',
+    submitHint: 'Откроется GitHub: проверьте ник и нажмите «Submit new issue».',
+    lbNote: 'Результаты появляются после проверки, обычно в течение минуты.'
   },
   en: {
     title: 'Gems',
@@ -87,13 +98,24 @@ const STRINGS = {
     adNotFinished: 'Watch the ad to the end to get the moves',
     player: 'Player',
     lbUnavailable: 'Leaderboard is unavailable',
-    lbEmpty: 'No results yet. Be the first!',
+    lbEmpty: 'No scores yet. Be the first!',
     lbSignIn: 'Sign in with Yandex to join the leaderboard',
     you: 'You',
     newRecord: 'New record!',
     confirmReset: 'Reset progress and start from level one?',
     resetDone: 'Progress reset',
-    goal: 'Goal'
+    goal: 'Goal',
+    nickTitle: 'What is your name?',
+    nickHint: 'Your nickname is shown to everyone in the leaderboard. It does not have to be unique.',
+    nickPlaceholder: 'Your nickname',
+    nickSave: 'Save',
+    nickSkip: 'Skip',
+    nickDefault: 'Guest',
+    changeNick: 'Change nickname',
+    submitScore: 'Submit to leaderboard',
+    submitSent: 'Sent for review',
+    submitHint: 'GitHub will open: check your nickname and click "Submit new issue".',
+    lbNote: 'Scores appear after review, usually within a minute.'
   }
 };
 
@@ -126,6 +148,9 @@ export const i18n = {
     });
     document.querySelectorAll('[data-i18n-aria]').forEach((el) => {
       el.setAttribute('aria-label', this.t(el.dataset.i18nAria));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+      el.setAttribute('placeholder', this.t(el.dataset.i18nPlaceholder));
     });
   },
 

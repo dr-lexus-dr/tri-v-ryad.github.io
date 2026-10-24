@@ -27,7 +27,7 @@ jobs:
       - name: Prepare site
         run: |
           mkdir -p _site
-          cp -r index.html css js assets .nojekyll _site/
+          cp -r index.html css js assets data .nojekyll _site/
           python3 -c "import pathlib; p = pathlib.Path('_site/index.html'); t = p.read_text(encoding='utf-8'); t = t.replace('  <script src=\"https://yandex.ru/games/sdk/v2\"></script>\n', ''); p.write_text(t, encoding='utf-8')"
 
       - name: Configure Pages

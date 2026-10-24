@@ -3,6 +3,7 @@ import { Platform } from './platform.js';
 import { audio } from './audio.js';
 import { Game, COLS, ROWS } from './game.js';
 import { Renderer } from './render.js';
+import { loadLeaderboard, scoreIssueUrl, sanitizeNick } from './leaderboard.js';
 
 const SAVE_KEY = 'gems.save.v1';
 const DEFAULT_SAVE = {
@@ -12,10 +13,11 @@ const DEFAULT_SAVE = {
   best: 0,
   stars: {},
   sound: true,
-  lang: null
+  lang: null,
+  nick: ''
 };
 
-const OVERLAYS = ['ov-pause', 'ov-win', 'ov-lose', 'ov-leaders'];
+const OVERLAYS = ['ov-pause', 'ov-win', 'ov-lose', 'ov-leaders', 'ov-nick'];
 
 const app = {
   game: null,
@@ -30,6 +32,8 @@ const app = {
   scoreTimer: 0,
   busyAd: false,
   adActive: false,
+  nickMode: 'play',
+  lastWin: null,
   resetArmedUntil: 0
 };
 
@@ -43,7 +47,8 @@ function initDom() {
     'shuffle-count', 'btn-resume', 'btn-restart', 'btn-pause-sound', 'btn-to-menu',
     'win-stars', 'win-score', 'win-bonus', 'win-total', 'btn-next', 'btn-win-menu',
     'btn-continue-ad', 'btn-retry', 'btn-lose-menu', 'lb-list', 'btn-leaders-close',
-    'loading', 'toast', 'ov-pause', 'ov-win', 'ov-lose', 'ov-leaders'
+    'loading', 'toast', 'ov-pause', 'ov-win', 'ov-lose', 'ov-leaders', 'ov-nick',
+    'btn-nick', 'nick-label', 'nick-input', 'btn-nick-save', 'btn-nick-skip', 'btn-submit-score'
   ];
   for (const id of ids) {
     dom[id] = document.getElementById(id);
@@ -61,6 +66,7 @@ function normalizeSave(data) {
   save.stars = save.stars && typeof save.stars === 'object' ? save.stars : {};
   save.sound = save.sound !== false;
   save.lang = save.lang === 'ru' || save.lang === 'en' ? save.lang : null;
+  save.nick = sanitizeNick(save.nick);
   return save;
 }
 
@@ -87,7 +93,8 @@ function mergeSaves(local, cloud) {
     best: Math.max(a.best, b.best),
     stars,
     sound: a.sound,
-    lang: a.lang || b.lang
+    lang: a.lang || b.lang,
+    nick: a.nick || b.nick
   });
 }
 
@@ -208,6 +215,27 @@ function applySnapshot(snap) {
 function refreshMenu() {
   dom['menu-level'].textContent = String(app.save.level);
   dom['menu-total'].textContent = i18n.formatNumber(app.save.total);
+  updateNickLabel();
+}
+
+function updateNickLabel() {
+  dom['nick-label'].textContent = app.save.nick || t('nickDefault');
+  dom['btn-nick'].title = t('changeNick');
+}
+
+function askNick(mode = 'play') {
+  app.nickMode = mode;
+  dom['nick-input'].value = app.save.nick || '';
+  openOverlay('ov-nick');
+  setTimeout(() => dom['nick-input'].focus(), 80);
+}
+
+function saveNick(raw) {
+  app.save.nick = sanitizeNick(raw) || t('nickDefault');
+  persist();
+  updateNickLabel();
+  closeOverlays();
+  if (app.nickMode === 'play') startLevel(app.save.level);
 }
 
 function updateLangButton() {
@@ -273,12 +301,28 @@ function onWin(data) {
     star.classList.toggle('is-on', index < data.stars);
   });
 
+  app.lastWin = { score: data.score, level: data.level };
+  dom['btn-submit-score'].disabled = false;
+  dom['btn-submit-score'].textContent = t('submitScore');
+
   app.renderer.stop();
   openOverlay('ov-win');
 
   for (let i = 0; i < data.stars; i++) {
     setTimeout(() => audio.star(i), 170 + i * 130);
   }
+}
+
+function submitScore() {
+  if (!app.lastWin) return;
+  const nick = app.save.nick || t('nickDefault');
+  const url = scoreIssueUrl({ nick, score: app.lastWin.score, level: app.lastWin.level });
+
+  window.open(url, '_blank', 'noopener');
+  dom['btn-submit-score'].disabled = true;
+  dom['btn-submit-score'].textContent = t('submitSent');
+  toast(t('submitHint'));
+  audio.click();
 }
 
 function onLose() {
@@ -396,15 +440,11 @@ async function openLeaders() {
   loading.textContent = t('loading');
   list.append(loading);
 
-  if (!Platform.available) {
-    loading.textContent = t('lbUnavailable');
-    return;
-  }
-
-  const data = await Platform.getTop(10);
-  list.textContent = '';
-
-  if (!data) {
+  let rows = [];
+  try {
+    rows = await loadLeaderboard(20);
+  } catch (error) {
+    list.textContent = '';
     const message = document.createElement('p');
     message.className = 'lb-empty';
     message.textContent = t('lbUnavailable');
@@ -412,8 +452,8 @@ async function openLeaders() {
     return;
   }
 
-  const entries = Array.isArray(data.entries) ? data.entries : [];
-  if (!entries.length) {
+  list.textContent = '';
+  if (!rows.length) {
     const message = document.createElement('p');
     message.className = 'lb-empty';
     message.textContent = t('lbEmpty');
@@ -421,26 +461,27 @@ async function openLeaders() {
     return;
   }
 
-  for (const entry of entries) {
-    const isMe = Boolean(data.userRank) && entry.rank === data.userRank;
-    const row = document.createElement('div');
-    row.className = isMe ? 'lb-row is-me' : 'lb-row';
+  rows.forEach((row, index) => {
+    const isMe = Boolean(app.save.nick) && row.nick === app.save.nick;
+    const item = document.createElement('div');
+    item.className = isMe ? 'lb-row is-me' : 'lb-row';
 
     const rank = document.createElement('span');
     rank.className = 'lb-rank';
-    rank.textContent = String(entry.rank);
+    rank.textContent = String(index + 1);
 
     const name = document.createElement('span');
     name.className = 'lb-name';
-    name.textContent = entry.player?.publicName || (isMe ? t('you') : t('player'));
+    name.textContent = row.nick;
+    name.title = `${row.nick} · ${t('levelShort')} ${row.level}`;
 
     const score = document.createElement('span');
     score.className = 'lb-score';
-    score.textContent = i18n.formatNumber(entry.score);
+    score.textContent = i18n.formatNumber(row.score);
 
-    row.append(rank, name, score);
-    list.append(row);
-  }
+    item.append(rank, name, score);
+    list.append(item);
+  });
 }
 
 /* ---------- Прочее ---------- */
@@ -538,6 +579,10 @@ function bindUi() {
   dom['btn-play'].addEventListener('click', () => {
     audio.ensure();
     audio.click();
+    if (!app.save.nick) {
+      askNick('play');
+      return;
+    }
     startLevel(app.save.level);
   });
 
@@ -560,6 +605,30 @@ function bindUi() {
   dom['btn-continue-ad'].addEventListener('click', onContinueAd);
   dom['btn-retry'].addEventListener('click', () => restartLevel());
   dom['btn-lose-menu'].addEventListener('click', toMenu);
+  dom['btn-nick'].addEventListener('click', () => {
+    audio.click();
+    askNick('edit');
+  });
+
+  dom['btn-nick-save'].addEventListener('click', () => {
+    audio.click();
+    saveNick(dom['nick-input'].value);
+  });
+
+  dom['btn-nick-skip'].addEventListener('click', () => {
+    audio.click();
+    saveNick(t('nickDefault'));
+  });
+
+  dom['nick-input'].addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      saveNick(dom['nick-input'].value);
+    }
+  });
+
+  dom['btn-submit-score'].addEventListener('click', submitScore);
+
   dom['btn-leaders-close'].addEventListener('click', () => {
     closeOverlays();
     audio.click();
@@ -616,10 +685,6 @@ async function boot() {
     } catch (error) {
       /* игнорируем */
     }
-  }
-
-  if (!Platform.available) {
-    dom['btn-leaders'].classList.add('is-hidden');
   }
 
   refreshMenu();

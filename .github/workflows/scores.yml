@@ -1,0 +1,107 @@
+name: Add leaderboard score
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: leaderboard
+  cancel-in-progress: false
+
+jobs:
+  add-score:
+    if: startsWith(github.event.issue.title, '[score]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update data/leaderboard.json
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'data/leaderboard.json';
+            const body = context.payload.issue.body || '';
+            const field = (name) => {
+              const match = body.match(new RegExp('^' + name + '=(.*)$', 'm'));
+              return match ? match[1].trim() : '';
+            };
+            const close = async (message, failed) => {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.issue.number,
+                body: message
+              });
+              await github.rest.issues.update({
+                ...context.repo,
+                issue_number: context.issue.number,
+                state: 'closed'
+              });
+              if (failed) core.setFailed(message);
+            };
+
+            const nick = field('nick').replace(/[<>\u0000-\u001f]/g, '').slice(0, 24);
+            const score = Number.parseInt(field('score'), 10);
+            const level = Number.parseInt(field('level'), 10);
+
+            if (!nick || !Number.isFinite(score) || score <= 0 || score > 100000
+                || !Number.isFinite(level) || level < 1 || level > 999) {
+              await close('Не удалось разобрать результат: нужны строки `nick=`, `score=`, `level=` с корректными значениями.', true);
+              return;
+            }
+
+            let data = { updated: null, scores: [] };
+            try {
+              data = JSON.parse(fs.readFileSync(path, 'utf8'));
+            } catch (error) {
+              data = { updated: null, scores: [] };
+            }
+            if (!Array.isArray(data.scores)) data.scores = [];
+
+            data.scores.push({ nick, score, level, at: new Date().toISOString().slice(0, 10) });
+            data.scores.sort((a, b) => (b.score || 0) - (a.score || 0));
+            data.scores = data.scores.slice(0, 200);
+            data.updated = new Date().toISOString();
+
+            fs.mkdirSync('data', { recursive: true });
+            fs.writeFileSync(path, JSON.stringify(data, null, 2) + '\n');
+            console.log(`Добавлен результат ${nick}: ${score} (уровень ${level})`);
+
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/leaderboard.json
+          if git diff --cached --quiet; then
+            echo "Нет изменений"
+            exit 0
+          fi
+          git commit -m "Leaderboard: issue #${{ github.event.issue.number }}"
+          for attempt in 1 2 3; do
+            git pull --rebase --autostash origin main && git push origin main && exit 0
+            sleep 3
+          done
+          exit 1
+
+      - name: Close issue
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: 'Результат добавлен в таблицу лидеров. Таблица обновится в течение минуты.'
+            });
+            await github.rest.issues.update({
+              ...context.repo,
+              issue_number: context.issue.number,
+              state: 'closed'
+            });

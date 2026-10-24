@@ -77,6 +77,9 @@
           <path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/>
         </svg>
       </button>
+      <button class="pill-btn pill-btn--nick" id="btn-nick" type="button" aria-label="Сменить ник" data-i18n-aria="changeNick">
+        <span id="nick-label">Гость</span>
+      </button>
       <button class="pill-btn" id="btn-lang" type="button">English</button>
     </div>
   </section>
@@ -176,6 +179,7 @@
         </div>
       </div>
       <button class="btn btn--primary" id="btn-next" type="button" data-i18n="next">Дальше</button>
+      <button class="btn btn--glass" id="btn-submit-score" type="button" data-i18n="submitScore">Отправить в таблицу</button>
       <button class="btn btn--ghost" id="btn-win-menu" type="button" data-i18n="menu">В меню</button>
     </div>
   </div>
@@ -207,7 +211,20 @@
       <div class="lb-list" id="lb-list">
         <p class="lb-empty" data-i18n="loading">Загрузка…</p>
       </div>
+      <p class="lb-note" data-i18n="lbNote">Результаты появляются после проверки, обычно в течение минуты.</p>
       <button class="btn btn--glass" id="btn-leaders-close" type="button" data-i18n="close">Закрыть</button>
+    </div>
+  </div>
+
+  <!-- ===== Ник ===== -->
+  <div class="overlay is-hidden" id="ov-nick">
+    <div class="panel">
+      <h2 class="panel-title" data-i18n="nickTitle">Как вас зовут?</h2>
+      <p class="panel-text" data-i18n="nickHint">Ник увидят все в таблице лидеров. Уникальность не проверяется.</p>
+      <input class="nick-input" id="nick-input" type="text" maxlength="16" autocomplete="nickname"
+             placeholder="Ваш ник" data-i18n-placeholder="nickPlaceholder" />
+      <button class="btn btn--primary" id="btn-nick-save" type="button" data-i18n="nickSave">Сохранить</button>
+      <button class="btn btn--ghost" id="btn-nick-skip" type="button" data-i18n="nickSkip">Пропустить</button>
     </div>
   </div>
 
