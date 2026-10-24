@@ -1,0 +1,6 @@
+.gigatool/
+node_modules/
+docs/
+gems.zip
+gems_yandex-games.zip
+.DS_Store
