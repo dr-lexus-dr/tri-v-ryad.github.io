@@ -1,4 +1,11 @@
 {
-  "updated": null,
-  "scores": []
+  "updated": "2026-10-24T17:36:30.309Z",
+  "scores": [
+    {
+      "nick": "тест",
+      "score": 2830,
+      "level": 1,
+      "at": "2026-10-24"
+    }
+  ]
 }
